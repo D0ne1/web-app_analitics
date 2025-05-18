@@ -175,7 +175,7 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Key metrics */}
+      {/* Ключевые метрики */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-primary-50 border-primary-100">
           <div className="flex items-center">
@@ -185,12 +185,6 @@ const DashboardPage: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-primary-600">Общая выручка</p>
               <h3 className="text-2xl font-bold text-gray-900">{totalRevenue.toLocaleString('ru-RU')} ₽</h3>
-              <p className="text-xs text-primary-700 mt-1 flex items-center">
-                {revenueChange >= 0 ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
-                <span>
-                  {revenueChange > 0 && "+"}{revenueChange}% с прошлой недели
-                </span>
-              </p>
             </div>
           </div>
         </Card>
@@ -203,12 +197,6 @@ const DashboardPage: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-secondary-600">Средний чек</p>
               <h3 className="text-2xl font-bold text-gray-900">{averageOrderValue.toLocaleString('ru-RU')} ₽</h3>
-              <p className="text-xs text-secondary-700 mt-1 flex items-center">
-                {avgOrderChange >= 0 ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
-                <span>
-                  {avgOrderChange > 0 && "+"}{avgOrderChange}% с прошлой недели
-                </span>
-              </p>
             </div>
           </div>
         </Card>
@@ -221,12 +209,6 @@ const DashboardPage: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-accent-600">Количество заказов</p>
               <h3 className="text-2xl font-bold text-gray-900">{orderCount}</h3>
-              <p className="text-xs text-error-700 mt-1 flex items-center">
-                {orderCountChange >= 0 ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
-                <span>
-                  {orderCountChange > 0 && "+"}{orderCountChange}% с прошлой недели
-                </span>
-              </p>
             </div>
           </div>
         </Card>

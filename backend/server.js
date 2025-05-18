@@ -17,8 +17,9 @@ const app = express();
 const port = 5000;
 
 // Supabase URL и сервисный ключ
+
 const supabaseUrl = 'https://nxibdtpmxkslhbbgeerz.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54aWJkdHBteGtzbGhiYmdlZXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczMTE4OTksImV4cCI6MjA2Mjg4Nzg5OX0.f6rEUnaoWOkB6wsOPfrLwO9RmatB18R3P-0r5gWBNOA';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54aWJkdHBteGtzbGhiYmdlZXJ6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzMxMTg5OSwiZXhwIjoyMDYyODg3ODk5fQ.IRGXE4tx2qNHzVWe24fTFK5fKIjvH34gQ898JIOI_v4';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -635,11 +636,14 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Неверная почта или пароль' });
   }
 
-  // 2. Получить username и роль из своей таблицы users по email
+  // 2. username и role из своей таблицы users по user.id
+  const userId = data.user.id;
+  const userEmail = data.user.email;
+
   const { data: users, error: userError } = await supabase
     .from('users')
     .select('username, role')
-    .eq('email', email)
+    .eq('id', userId)
     .limit(1);
 
   let username = '';
@@ -651,14 +655,16 @@ app.post('/api/login', async (req, res) => {
 
   res.json({
     user: {
-      id: data.user.id,
-      email,
+      id: userId,
+      email: userEmail,
       username,
       role,
     },
-   
   });
 });
+
+
+// Получить все прогнозы по блюдам
 app.get('/api/forecasts', async (req, res) => {
 try {
   const timeframe = req.query.timeframe === 'month' ? 'month' : 'week';
@@ -840,6 +846,7 @@ function excelDateToISOString(excelDate, withTime = false) {
 
 app.post("/api/uploads", upload.single("file"), async (req, res) => {
   try {
+    // 1. Очистка таблиц
     await supabase.from('order_items').delete().neq('id', null);
     await supabase.from('orders').delete().neq('id', null);
     await supabase.from('dishes').delete().neq('id', null);
@@ -848,13 +855,13 @@ app.post("/api/uploads", upload.single("file"), async (req, res) => {
 
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
 
-    // 1. WAITERS
+    // 2. WAITERS
     const waitersSheet = workbook.Sheets["waiters"];
     const waiters = XLSX.utils.sheet_to_json(waitersSheet, { defval: "" });
     const waiterOrigToReal = {};
     for (const w of waiters) {
       const { name, phone, hired_at, orig_id } = w;
-      const hiredAtParsed = excelDateToISOString(hired_at, false); // только дата
+      const hiredAtParsed = excelDateToISOString(hired_at, false);
       const { data, error } = await supabase
         .from("waiters")
         .insert([{ name, phone, hired_at: hiredAtParsed }])
@@ -864,11 +871,12 @@ app.post("/api/uploads", upload.single("file"), async (req, res) => {
       waiterOrigToReal[orig_id] = data.id;
     }
 
-    // 2. DISHES
+    // 3. DISHES
     const dishesSheet = workbook.Sheets["dishes"];
-    const dishes = XLSX.utils.sheet_to_json(dishesSheet, { defval: "" });
+    const dishesArr = XLSX.utils.sheet_to_json(dishesSheet, { defval: "" });
     const dishOrigToReal = {};
-    for (const d of dishes) {
+    const dishByOrigId = {};
+    for (const d of dishesArr) {
       const { name, category, price, is_available, orig_id } = d;
       const { data, error } = await supabase
         .from("dishes")
@@ -877,37 +885,61 @@ app.post("/api/uploads", upload.single("file"), async (req, res) => {
         .single();
       if (error) throw error;
       dishOrigToReal[orig_id] = data.id;
+      dishByOrigId[orig_id] = { ...d, dbId: data.id, price: Number(price) };
     }
 
-    // 3. ORDERS (!!! исправлено !!!)
+    // 4. ORDERS (без total_amount)
     const ordersSheet = workbook.Sheets["orders"];
     const orders = XLSX.utils.sheet_to_json(ordersSheet, { defval: "" });
     const orderOrigToReal = {};
     for (const o of orders) {
-      const { order_date, table_number, waiter_orig_id, total_amount, orig_id } = o;
+      const { order_date, table_number, waiter_orig_id, orig_id } = o;
       const waiter_id = waiterOrigToReal[waiter_orig_id];
-      const orderDateParsed = excelDateToISOString(order_date, true); // дата и время!
+      const orderDateParsed = excelDateToISOString(order_date, true);
+      // total_amount не указываем!
       const { data, error } = await supabase
         .from("orders")
-        .insert([{ order_date: orderDateParsed, table_number, waiter_id, total_amount }])
+        .insert([{ order_date: orderDateParsed, table_number, waiter_id, total_amount: 0 }])
         .select()
         .single();
       if (error) throw error;
       orderOrigToReal[orig_id] = data.id;
     }
 
-    // 4. ORDER_ITEMS
+    // 5. ORDER_ITEMS (price считаем сами)
     const itemsSheet = workbook.Sheets["order_items"];
     const items = XLSX.utils.sheet_to_json(itemsSheet, { defval: "" });
+
+    // Для подсчёта суммы заказа
+    const orderIdToSum = {}; // order_id => сумма
+
     for (const i of items) {
-      const { order_orig_id, dish_orig_id, quantity, price } = i;
+      const { order_orig_id, dish_orig_id, quantity } = i;
       const order_id = orderOrigToReal[order_orig_id];
       const dish_id = dishOrigToReal[dish_orig_id];
-      await supabase.from("order_items").insert([{ order_id, dish_id, quantity, price }]);
+
+      // Получаем цену блюда
+      const dish = dishByOrigId[dish_orig_id];
+      const pricePerOne = dish ? Number(dish.price) : 0;
+      const price = pricePerOne * Number(quantity);
+
+      // Добавляем позицию
+      await supabase.from("order_items").insert([{ order_id, dish_id, quantity: Number(quantity), price }]);
+
+      // Копим сумму для order
+      if (!orderIdToSum[order_id]) orderIdToSum[order_id] = 0;
+      orderIdToSum[order_id] += price;
     }
+
+    // 6. Обновляем total_amount для каждого заказа
+    for (const [order_id, total_amount] of Object.entries(orderIdToSum)) {
+      await supabase.from("orders").update({ total_amount }).eq("id", order_id);
+    }
+
+    // 7. Фиксируем загрузку
     await supabase.from('uploads').insert([{
       file_name: req.file.originalname,
-      user_id: req.user?.id || null 
+      user_id: req.user?.id || null
     }]);
     res.json({ ok: true, message: "Все данные импортированы!" });
   } catch (e) {
@@ -919,10 +951,52 @@ app.post("/api/uploads", upload.single("file"), async (req, res) => {
 
 
 
+// Удалить все данные из всех таблиц (кроме users)
+app.post('/api/delete-all', async (req, res) => {
+  try {
+    const errors = [];
+    for (const table of ['order_items', 'orders', 'forecasts', 'dishes', 'waiters', 'uploads']) {
+      const { error } = await supabase.from(table).delete().not('id', 'is', null);
+      if (error) errors.push({ table, error });
+    }
+    if (errors.length) {
+      console.error('Ошибки при удалении:', errors);
+      return res.status(500).json({ error: 'Ошибка при удалении данных', details: errors });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Ошибка при удалении всех данных:", e);
+    res.status(500).json({ error: "Ошибка при удалении данных" });
+  }
+});
 
 
 
+// Для изменения username и email пользователя
+app.put('/api/users/:id', async (req, res) => {
+  const userId = req.params.id;
+  const { username, email } = req.body;
 
+  // 1. Обновить имя и email в своей таблице users
+  const { error: userError } = await supabase
+    .from('users')
+    .update({ username, email })
+    .eq('id', userId);
+
+  if (userError) {
+    return res.status(500).json({ error: 'Ошибка обновления профиля (users)' });
+  }
+
+  // 2. Обновить email в Supabase Auth (это важно!)
+  // Для этого нужен сервисный ключ (который у тебя уже есть)
+  const { error: authError } = await supabase.auth.admin.updateUserById(userId, { email });
+  if (authError) {
+    console.error("SUPABASE AUTH ERROR:", authError);
+    return res.status(500).json({ error: 'Ошибка обновления email (auth)' });
+  }
+
+  res.json({ ok: true });
+});
 
 
 

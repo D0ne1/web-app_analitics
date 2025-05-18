@@ -3,10 +3,11 @@ import { User, Role } from '../types';
 
 interface AuthContextType {
   user: User | null;
+  setUser: (user: User | null) => void; // ← добавь эту строку!
   isAuthenticated: boolean;
   isLoading: boolean;
   hasRole: (roles: Role[]) => boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string, role: Role) => Promise<void>;
   logout: () => void;
 }
@@ -19,13 +20,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-  const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('user');
     try {
       if (storedUser && storedUser !== 'undefined') {
         setUser(JSON.parse(storedUser));
       }
     } catch (e) {
-      // Если в localStorage лежит мусор, очищаем
       localStorage.removeItem('user');
       setUser(null);
     }
@@ -52,24 +52,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (email: string, username: string, password: string, role: Role) => {
-  setIsLoading(true);
-  try {
-    const res = await fetch(`${API_URL}/api/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, username, password, role }),
-    });
-    const text = await res.text();
-    console.log('Ответ сервера:', text);
-    const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
-    setUser(data.user);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    if (data.token) localStorage.setItem('token', data.token);
-  } finally {
-    setIsLoading(false);
-  }
-};
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password, role }),
+      });
+      const text = await res.text();
+      console.log('Ответ сервера:', text);
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.token) localStorage.setItem('token', data.token);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const logout = () => {
     localStorage.removeItem('user');
@@ -86,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        setUser, // ← обязательно добавь!
         isAuthenticated: !!user,
         isLoading,
         hasRole,
