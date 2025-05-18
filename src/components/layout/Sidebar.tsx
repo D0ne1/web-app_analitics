@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '../../components/common/Button';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -47,7 +48,7 @@ const Sidebar: React.FC = () => {
         <p className="text-sm text-gray-500 mt-1">Аналитика ресторана</p>
       </div>
       
-      <nav className="mt-6">
+      <nav className="mt-6 flex flex-col gap-1">
         <NavItem 
           to="/dashboard" 
           icon={<LayoutDashboard size={20} />} 
@@ -84,6 +85,12 @@ const Sidebar: React.FC = () => {
           label="Загрузки" 
           allowedRoles={['admin', 'analyst']} 
         />
+        {/* Центрируем кнопку */}
+        <div className="flex justify-center my-1">
+          <Button onClick={() => window.open('http://localhost:5000/api/export-full-report-docx')}>
+            Экспорт полного отчёта
+          </Button>
+        </div>
         <NavItem 
           to="/settings" 
           icon={<Settings size={20} />} 

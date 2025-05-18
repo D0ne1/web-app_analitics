@@ -46,6 +46,7 @@ interface TopDish {
 
 interface WaiterPerformance {
   name: string;
+  surname: string;
   orderCount: number;
   revenue: number;
 }
@@ -68,7 +69,7 @@ const DashboardPage: React.FC = () => {
  const fetchData = async () => {
   setIsLoading(true);
   try {
-    const response = await fetch(`http://localhost:5000/dashboard?timeframe=${timeframe}`);
+    const response = await fetch(`http://localhost:5000/api/dashboard?timeframe=${timeframe}`);
     const json = await response.json();
     if (!response.ok) throw new Error(json.error || 'Ошибка получения данных');
 
@@ -141,6 +142,7 @@ const DashboardPage: React.FC = () => {
             Аналитика работы ресторана
           </p>
         </div>
+        
         <div className="flex space-x-2">
           <Button
             variant={timeframe === 'week' ? 'primary' : 'outline'}
@@ -276,7 +278,7 @@ const DashboardPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя Фамилия</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Заказы</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Выручка</th>
                 </tr>
@@ -284,7 +286,7 @@ const DashboardPage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {waiterPerformance.map((waiter, idx) => (
                   <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{waiter.name}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{waiter.name} {waiter.surname}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{waiter.orderCount}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{waiter.revenue.toLocaleString('ru-RU')} ₽</td>
                   </tr>

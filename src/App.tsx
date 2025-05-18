@@ -39,6 +39,7 @@ function App() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/uploads" element={<UploadPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            
           </Route>
           
           {/* Redirect to dashboard */}

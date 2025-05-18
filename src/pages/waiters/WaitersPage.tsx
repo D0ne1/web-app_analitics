@@ -28,6 +28,7 @@ const WaitersPage: React.FC = () => {
         const normalized = data.map((w: any) => ({
           id: w.id,
           name: w.name,
+          surname: w.surname,
           phone: w.phone,
           hiredAt: w.hired_at || w.hiredAt,
         }));
@@ -54,6 +55,7 @@ const WaitersPage: React.FC = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: newWaiter.name,
+        surname: newWaiter.surname,
         phone: newWaiter.phone,
         hired_at: newWaiter.hiredAt,
       }),
@@ -66,11 +68,12 @@ const WaitersPage: React.FC = () => {
         setWaiters(prev => [...prev, {
           id: addedWaiter.id,
           name: addedWaiter.name,
+          surname: addedWaiter.surname, 
           phone: addedWaiter.phone,
           hiredAt: addedWaiter.hired_at,
         }]);
         setShowAddModal(false);
-        setNewWaiter({ name: '', phone: '', hiredAt: format(new Date(), 'yyyy-MM-dd') });
+        setNewWaiter({ name: '', surname: '', phone: '', hiredAt: format(new Date(), 'yyyy-MM-dd') });
       })
       .catch(err => {
         alert(err.message);
@@ -85,6 +88,7 @@ const handleUpdateWaiter = () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: editWaiter.name,
+      surname: editWaiter.surname,
       phone: editWaiter.phone,
       hired_at: editWaiter.hiredAt,
     }),
@@ -163,7 +167,7 @@ const handleUpdateWaiter = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Имя и Фамилия</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Телефон</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата найма</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
@@ -173,7 +177,7 @@ const handleUpdateWaiter = () => {
                 {filteredWaiters.map((waiter) => (
                   <tr key={waiter.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{waiter.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{waiter.name} {waiter.surname}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500 flex items-center">
@@ -226,12 +230,21 @@ const handleUpdateWaiter = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Добавить нового официанта</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">ФИО</label>
+                <label className="block text-sm font-medium text-gray-700">Имя</label>
                 <input
                   type="text"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                   value={newWaiter.name}
                   onChange={(e) => setNewWaiter({ ...newWaiter, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Фамилия</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                  value={newWaiter.surname}
+                  onChange={(e) => setNewWaiter({ ...newWaiter, surname: e.target.value })}
                 />
               </div>
               <div>
@@ -279,7 +292,7 @@ const handleUpdateWaiter = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Редактировать официанта</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">ФИО</label>
+                <label className="block text-sm font-medium text-gray-700">Имя</label>
                 <input
                   type="text"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
@@ -288,12 +301,12 @@ const handleUpdateWaiter = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Телефон</label>
+                <label className="block text-sm font-medium text-gray-700">Фамилия</label>
                 <input
-                  type="tel"
+                  type="text"
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={editWaiter.phone}
-                  onChange={(e) => setEditWaiter({ ...editWaiter, phone: e.target.value })}
+                  value={editWaiter.surname}
+                  onChange={(e) => setEditWaiter({ ...editWaiter, surname: e.target.value })}
                 />
               </div>
               <div>

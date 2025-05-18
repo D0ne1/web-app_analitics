@@ -14,6 +14,7 @@ export interface Dish {
   id: number;
   name: string;
   category: string;
+  categoryId: number;
   price: number;
   isAvailable: boolean;
 }
@@ -21,6 +22,7 @@ export interface Dish {
 export interface Waiter {
   id: number;
   name: string;
+  surname: string;
   phone: string;
   hiredAt: string;
 }

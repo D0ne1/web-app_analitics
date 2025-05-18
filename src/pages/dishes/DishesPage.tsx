@@ -1,123 +1,148 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Check, X } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
-import { useEffect } from 'react';
 import axios from 'axios';
 import { Dish } from '../../types';
 
-
+type Category = { id: number; name: string };
 
 const DishesPage: React.FC = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newDish, setNewDish] = useState<Partial<Dish>>({
+    name: '',
+    categoryId: undefined,
+    price: 0,
+    isAvailable: true
+  });
+  const [editDish, setEditDish] = useState<Partial<Dish> | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/dish-categories')
+      .then(res => setCategories(res.data))
+      .catch(err => console.error('Ошибка при загрузке категорий:', err));
+  }, []);
+
   useEffect(() => {
     axios.get('http://localhost:5000/api/dishes')
       .then(res => {
         const formatted = res.data.map((d: any) => ({
           id: d.id,
           name: d.name,
-          category: d.category,
+          categoryId: d.categoryId,
+          category: d.categoryName, // для отображения
           price: d.price,
-          isAvailable: d.is_available, 
+          isAvailable: d.isAvailable,
         }));
         setDishes(formatted);
       })
       .catch(err => console.error('Ошибка при загрузке блюд:', err));
   }, []);
 
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newDish, setNewDish] = useState<Partial<Dish>>({
-    name: '',
-    category: '',
-    price: 0,
-    isAvailable: true
-  });
-  const [editDish, setEditDish] = useState<Partial<Dish> | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
   const openEditModal = (dish: Dish) => {
-    setEditDish(dish);
+    setEditDish({
+      id: dish.id,
+      name: dish.name,
+      categoryId: dish.categoryId,
+      price: dish.price,
+      isAvailable: dish.isAvailable
+    });
     setShowEditModal(true);
   };
+
   const handleUpdateDish = () => {
-    if (!editDish?.id || !editDish.name || !editDish.category || editDish.price === undefined || editDish.price === null) return;
+    if (
+      !editDish?.id ||
+      !editDish.name ||
+      !editDish.categoryId ||
+      editDish.price === undefined
+    ) return;
 
-
-    axios.put(`http://localhost:5000/api/dishes/${editDish.id}`, {
+    axios.patch(`http://localhost:5000/api/dishes/${editDish.id}`, {
       name: editDish.name,
-      category: editDish.category,
-      price: Number(editDish.price),
-      isAvailable: editDish.isAvailable ?? true,
+      categoryId: editDish.categoryId,
+      price: editDish.price,
+      isAvailable: editDish.isAvailable,
     })
-    .then(res => {
-      setDishes(prev => prev.map(d => (d.id === editDish.id ? res.data : d)));
-      setShowEditModal(false);
-      setEditDish(null);
-    })
-    .catch(err => {
-      console.error('Ошибка при обновлении блюда:', err);
-    });
+      .then(res => {
+        // Подразумевается, что сервер возвращает объект блюда с categoryName и categoryId
+        const updated = {
+          ...res.data,
+          categoryId: res.data.categoryId,
+          category: res.data.categoryName,
+          isAvailable: res.data.isAvailable,
+        };
+        setDishes(prev => prev.map(d => (d.id === editDish.id ? updated : d)));
+        setShowEditModal(false);
+        setEditDish(null);
+      })
+      .catch(err => {
+        console.error('Ошибка при обновлении блюда:', err);
+      });
   };
-
-
-const categories = Array.from(new Set(dishes.map((dish: Dish) => dish.category)));
-
 
   const filteredDishes = dishes.filter(dish => {
     const matchesSearch = dish.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || dish.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || dish.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
- const handleAddDish = () => {
-  if (newDish.name && newDish.category && newDish.price) {
-    axios.post('http://localhost:5000/api/dishes', {
-      name: newDish.name,
-      category: newDish.category,
-      price: Number(newDish.price),
-      isAvailable: newDish.isAvailable ?? true
-    })
-    .then(res => {
-      setDishes([...dishes, res.data]);
-      setShowAddModal(false);
-      setNewDish({ name: '', category: '', price: 0, isAvailable: true });
-    })
-    .catch(err => {
-      console.error('Ошибка при добавлении блюда:', err);
-    });
-  }
-};
+  const handleAddDish = () => {
+    if (newDish.name && newDish.categoryId && newDish.price !== undefined) {
+      axios.post('http://localhost:5000/api/dishes', {
+        name: newDish.name,
+        categoryId: newDish.categoryId,
+        price: newDish.price,
+        isAvailable: newDish.isAvailable ?? true
+      })
+        .then(res => {
+          const added = {
+            ...res.data,
+            categoryId: res.data.categoryId,
+            category: categories.find(cat => cat.id === res.data.categoryId)?.name || '',
+            isAvailable: res.data.isAvailable,
+          };
+          setDishes([...dishes, added]);
+          setShowAddModal(false);
+          setNewDish({ name: '', categoryId: undefined, price: 0, isAvailable: true });
+        })
+        .catch(err => {
+          console.error('Ошибка при добавлении блюда:', err);
+        });
+    }
+  };
 
-
-const handleDeleteDish = (id: number) => {
-  axios.delete(`http://localhost:5000/api/dishes/${id}`)
-    .then(() => {
-      setDishes(dishes.filter(d => d.id !== id));
-    })
-    .catch(err => {
-      console.error('Ошибка при удалении блюда:', err);
-    });
-};
+  const handleDeleteDish = (id: number) => {
+    axios.delete(`http://localhost:5000/api/dishes/${id}`)
+      .then(() => {
+        setDishes(dishes.filter(d => d.id !== id));
+      })
+      .catch(err => {
+        console.error('Ошибка при удалении блюда:', err);
+      });
+  };
 
   const handleToggleAvailability = (id: number) => {
-  const dish = dishes.find(d => d.id === id);
-  if (!dish) return;
+    const dish = dishes.find(d => d.id === id);
+    if (!dish) return;
 
-  axios.patch(`http://localhost:5000/api/dishes/${id}/toggle`, {
-    isAvailable: !dish.isAvailable
-  })
-  .then(res => {
-    setDishes(dishes.map(d =>
-      d.id === id ? { ...d, isAvailable: res.data.is_available } : d
-    ));
-  })
-  .catch(err => {
-    console.error('Ошибка при обновлении доступности блюда:', err);
-  });
-};
-
+    axios.patch(`http://localhost:5000/api/dishes/${id}/toggle`, {
+      isAvailable: !dish.isAvailable
+    })
+      .then(res => {
+        setDishes(dishes.map(d =>
+          d.id === id ? { ...d, isAvailable: res.data.isAvailable } : d
+        ));
+      })
+      .catch(err => {
+        console.error('Ошибка при обновлении доступности блюда:', err);
+      });
+  };
 
   return (
     <div className="space-y-6">
@@ -152,11 +177,11 @@ const handleDeleteDish = (id: number) => {
           <select
             className="border border-gray-300 rounded-md px-4 py-2 focus:ring-primary-500 focus:border-primary-500"
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => setSelectedCategory(e.target.value === 'all' ? 'all' : Number(e.target.value))}
           >
             <option value="all">Все категории</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
         </div>
@@ -248,13 +273,16 @@ const handleDeleteDish = (id: number) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Категория</label>
-                <input
-                  type="text"
+                <select
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={newDish.category}
-                  onChange={(e) => setNewDish({ ...newDish, category: e.target.value })}
-                />
+                  value={newDish.categoryId ?? ''}
+                  onChange={e => setNewDish({ ...newDish, categoryId: Number(e.target.value) })}
+                >
+                  <option value="" disabled>Выберите категорию</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Цена</label>
@@ -296,6 +324,7 @@ const handleDeleteDish = (id: number) => {
           </div>
         </div>
       )}
+
       {showEditModal && editDish && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -312,12 +341,16 @@ const handleDeleteDish = (id: number) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Категория</label>
-                <input
-                  type="text"
+                <select
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  value={editDish.category}
-                  onChange={(e) => setEditDish({ ...editDish, category: e.target.value })}
-                />
+                  value={editDish.categoryId ?? ''}
+                  onChange={e => setEditDish({ ...editDish, categoryId: Number(e.target.value) })}
+                >
+                  <option value="" disabled>Выберите категорию</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Цена</label>
@@ -355,12 +388,10 @@ const handleDeleteDish = (id: number) => {
               >
                 Сохранить
               </Button>
-             
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

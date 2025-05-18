@@ -36,6 +36,7 @@ const AnalyticsPage: React.FC = () => {
         `http://localhost:5000/api/forecasts?timeframe=${timeframe}`,
       );
       const json = await res.json();
+      console.log("Ответ /api/forecasts:", json);
       setForecasts(json);
     } catch (err) {
       console.error("Ошибка загрузки прогнозов:", err);
