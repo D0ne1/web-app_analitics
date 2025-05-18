@@ -6,8 +6,6 @@ import {
   ShoppingBag,
   BarChart2,
   Calendar,
-  ChevronsUp,
-  ChevronsDown
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -64,10 +62,7 @@ const DashboardPage: React.FC = () => {
   const [orderCount, setOrderCount] = useState(0);
   const [topDishes, setTopDishes] = useState<TopDish[]>([]);
   const [waiterPerformance, setWaiterPerformance] = useState<WaiterPerformance[]>([]);
-  const [revenueChange, setRevenueChange] = useState(0);
-  const [avgOrderChange, setAvgOrderChange] = useState(0);
-  const [orderCountChange, setOrderCountChange] = useState(0);
-  //const [orders, setOrders] = useState<any[]>([]);
+
 
 
  const fetchData = async () => {
@@ -82,9 +77,7 @@ const DashboardPage: React.FC = () => {
       format(new Date(item.date), 'dd MMM', { locale: ru })
     );
     const revenueData = json.revenueData.map((item: any) => item.revenue);
-    setRevenueChange(json.revenueChange);
-    setAvgOrderChange(json.avgOrderChange);
-    setOrderCountChange(json.orderCountChange);
+
     setLabels(labels);
     setRevenueData(revenueData);
     setTotalRevenue(json.totalRevenue);
