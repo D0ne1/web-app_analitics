@@ -15,6 +15,7 @@ import DishesPage from './pages/dishes/DishesPage';
 import WaitersPage from './pages/waiters/WaitersPage';
 import OrdersPage from './pages/orders/orderspage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
+import UploadPage from './pages/uploads/UploadPage';
 
 
 
@@ -35,8 +36,8 @@ function App() {
             <Route path="/waiters" element={<WaitersPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/uploads" element={<UploadPage />} />
             
-            <Route path="/uploads" element={<div className="p-4">Страница загрузок (в разработке)</div>} />
             <Route path="/settings" element={<div className="p-4">Страница настроек (в разработке)</div>} />
           </Route>
           

@@ -7,6 +7,12 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'your_super_secret_key'; 
 const cron = require('node-cron');
 
+//const { excelDateToISOString } = require('./excel-date-utils');
+
+const multer = require('multer');
+const XLSX = require('xlsx');
+const upload = multer({ storage: multer.memoryStorage() });
+
 const app = express();
 const port = 5000;
 
@@ -653,30 +659,6 @@ app.post('/api/login', async (req, res) => {
    
   });
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 app.get('/api/forecasts', async (req, res) => {
 try {
   const timeframe = req.query.timeframe === 'month' ? 'month' : 'week';
@@ -747,10 +729,8 @@ app.post('/api/generate-forecast', async (req, res) => {
   }
 });
 
-
-
-
-// --- ВЫНОСИМ ГЕНЕРАЦИЮ ПРОГНОЗА В ОТДЕЛЬНУЮ ФУНКЦИЮ ---
+// Генерация прогноза продаж на 31 день вперёд
+// (по данным за последние 4 недели)
 async function generateForecasts() {
   // Получаем все блюда
   const { data: dishes, error: dishError } = await supabase.from('dishes').select('id');
@@ -821,6 +801,127 @@ cron.schedule('0 3 * * *', () => {
   console.log('Автоматический запуск прогноза...');
   generateForecasts().catch(console.error);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Загрузка файла Excel
+function excelDateToISOString(excelDate, withTime = false) {
+  if (typeof excelDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(excelDate)) {
+    // Если строка уже ISO — вернуть как есть
+    if (!withTime) return excelDate.slice(0, 10);
+    // Если строка без времени, добавить 00:00:00 с T
+    if (/^\d{4}-\d{2}-\d{2}$/.test(excelDate)) return excelDate + 'T00:00:00';
+    return excelDate.replace(" ", "T").replace("Z", ""); // Если вдруг формат с пробелом
+  }
+  if (typeof excelDate === "number") {
+    const excelEpoch = new Date(1899, 11, 30);
+    const jsDate = new Date(excelEpoch.getTime() + excelDate * 24 * 60 * 60 * 1000);
+    if (withTime) {
+      return jsDate.toISOString().slice(0, 19); // "2025-05-15T13:20:00"
+    }
+    return jsDate.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+
+app.post("/api/uploads", upload.single("file"), async (req, res) => {
+  try {
+    await supabase.from('order_items').delete().neq('id', null);
+    await supabase.from('orders').delete().neq('id', null);
+    await supabase.from('dishes').delete().neq('id', null);
+    await supabase.from('waiters').delete().neq('id', null);
+    if (!req.file) return res.status(400).json({ error: "Файл не передан" });
+
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+
+    // 1. WAITERS
+    const waitersSheet = workbook.Sheets["waiters"];
+    const waiters = XLSX.utils.sheet_to_json(waitersSheet, { defval: "" });
+    const waiterOrigToReal = {};
+    for (const w of waiters) {
+      const { name, phone, hired_at, orig_id } = w;
+      const hiredAtParsed = excelDateToISOString(hired_at, false); // только дата
+      const { data, error } = await supabase
+        .from("waiters")
+        .insert([{ name, phone, hired_at: hiredAtParsed }])
+        .select()
+        .single();
+      if (error) throw error;
+      waiterOrigToReal[orig_id] = data.id;
+    }
+
+    // 2. DISHES
+    const dishesSheet = workbook.Sheets["dishes"];
+    const dishes = XLSX.utils.sheet_to_json(dishesSheet, { defval: "" });
+    const dishOrigToReal = {};
+    for (const d of dishes) {
+      const { name, category, price, is_available, orig_id } = d;
+      const { data, error } = await supabase
+        .from("dishes")
+        .insert([{ name, category, price, is_available }])
+        .select()
+        .single();
+      if (error) throw error;
+      dishOrigToReal[orig_id] = data.id;
+    }
+
+    // 3. ORDERS (!!! исправлено !!!)
+    const ordersSheet = workbook.Sheets["orders"];
+    const orders = XLSX.utils.sheet_to_json(ordersSheet, { defval: "" });
+    const orderOrigToReal = {};
+    for (const o of orders) {
+      const { order_date, table_number, waiter_orig_id, total_amount, orig_id } = o;
+      const waiter_id = waiterOrigToReal[waiter_orig_id];
+      const orderDateParsed = excelDateToISOString(order_date, true); // дата и время!
+      const { data, error } = await supabase
+        .from("orders")
+        .insert([{ order_date: orderDateParsed, table_number, waiter_id, total_amount }])
+        .select()
+        .single();
+      if (error) throw error;
+      orderOrigToReal[orig_id] = data.id;
+    }
+
+    // 4. ORDER_ITEMS
+    const itemsSheet = workbook.Sheets["order_items"];
+    const items = XLSX.utils.sheet_to_json(itemsSheet, { defval: "" });
+    for (const i of items) {
+      const { order_orig_id, dish_orig_id, quantity, price } = i;
+      const order_id = orderOrigToReal[order_orig_id];
+      const dish_id = dishOrigToReal[dish_orig_id];
+      await supabase.from("order_items").insert([{ order_id, dish_id, quantity, price }]);
+    }
+    await supabase.from('uploads').insert([{
+      file_name: req.file.originalname,
+      user_id: req.user?.id || null 
+    }]);
+    res.json({ ok: true, message: "Все данные импортированы!" });
+  } catch (e) {
+    console.error("Ошибка загрузки файла:", e);
+    res.status(500).json({ error: "Ошибка обработки файла" });
+  }
+});
+
+
+
+
+
+
+
 
 
 
