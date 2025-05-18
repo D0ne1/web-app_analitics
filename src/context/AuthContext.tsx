@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка входа');
-      // Сохраняем user и токен (если сервер возвращает токен)
+      
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       if (data.token) localStorage.setItem('token', data.token);

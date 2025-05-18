@@ -43,7 +43,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 hidden md:block bg-white border-r border-gray-200 overflow-y-auto">
       <div className="py-6 px-6 border-b border-gray-200">
-        <h2 className="text-2xl font-bold text-primary-700">Restorun</h2>
+        <h2 className="text-2xl font-bold text-primary-700">Resto`run</h2>
         <p className="text-sm text-gray-500 mt-1">Аналитика ресторана</p>
       </div>
       

@@ -26,7 +26,7 @@ const Header: React.FC = () => {
       </div>
       
       <div className="flex-1 md:text-center md:flex-initial">
-        <h1 className="text-xl font-semibold text-gray-800">Restorun</h1>
+        <h1 className="text-xl font-semibold text-gray-800">Resto`run</h1>
       </div>
       
       <div className="flex items-center space-x-4">

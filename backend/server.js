@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); 
 const JWT_SECRET = 'your_super_secret_key'; 
+const cron = require('node-cron');
 
 const app = express();
 const port = 5000;
@@ -602,8 +603,6 @@ app.post('/api/register', async (req, res) => {
   res.status(201).json({ user: { id: userId, email, username, role } });
 });
 
-
-
 // app.post('/api/login', async (req, res) => {
 //   // ВРЕМЕННО: жёстко прописываем e-mail и пароль для теста
 //   const { data, error } = await supabase.auth.signInWithPassword({
@@ -615,8 +614,6 @@ app.post('/api/register', async (req, res) => {
 //   // Можно возвращать результат теста на фронт (или просто смотреть в логе Node.js)
 //   res.json({ data, error });
 // });
-
-
 
 // Логин пользователя
 app.post('/api/login', async (req, res) => {
@@ -670,6 +667,160 @@ app.post('/api/login', async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+app.get('/api/forecasts', async (req, res) => {
+try {
+  const timeframe = req.query.timeframe === 'month' ? 'month' : 'week';
+
+  // Ставим сегодняшний день
+  const today = new Date();
+  // Формат YYYY-MM-DD
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // Дата конца периода
+  let periodEnd = new Date(today);
+  periodEnd.setDate(periodEnd.getDate() + (timeframe === 'month' ? 31 : 7));
+  const periodEndStr = periodEnd.toISOString().slice(0, 10);
+
+  // Получаем все блюда
+  const { data: dishes, error: dishesError } = await supabase
+    .from('dishes')
+    .select('id, name');
+  if (dishesError) throw dishesError;
+
+  // Получаем прогнозы по всем блюдам на период вперёд (от сегодня)
+  const { data: forecasts, error: forecastsError } = await supabase
+    .from('forecasts')
+    .select('dish_id, forecast_date, predicted_sales')
+    .gte('forecast_date', todayStr)
+    .lte('forecast_date', periodEndStr);
+  if (forecastsError) throw forecastsError;
+
+  // Группируем по блюдам
+  const forecastMap = {};
+  for (const dish of dishes) {
+    forecastMap[dish.id] = {
+      dish_id: dish.id,
+      dish_name: dish.name,
+      week_forecast: 0,
+      month_forecast: 0,
+    };
+  }
+
+  // Суммируем по неделе и месяцу отдельно!
+  for (const f of forecasts) {
+    const d = new Date(f.forecast_date);
+    const daysFromToday = Math.floor((d - today) / (1000 * 60 * 60 * 24));
+    if (daysFromToday < 7) {
+      forecastMap[f.dish_id].week_forecast += Number(f.predicted_sales);
+    }
+    if (daysFromToday < 31) {
+      forecastMap[f.dish_id].month_forecast += Number(f.predicted_sales);
+    }
+  }
+
+  // Формируем ответ
+  const result = Object.values(forecastMap);
+
+  res.json(result);
+} catch (error) {
+  console.error('Ошибка при получении прогнозов:', error);
+  res.status(500).json({ error: 'Ошибка сервера при получении прогнозов' });
+}
+});
+app.post('/api/generate-forecast', async (req, res) => {
+  try {
+    await generateForecasts();
+    res.json({ ok: true, message: 'Прогноз успешно обновлён!' });
+  } catch (err) {
+    console.error('Ошибка генерации прогноза:', err);
+    res.status(500).json({ error: 'Ошибка генерации прогноза' });
+  }
+});
+
+
+
+
+// --- ВЫНОСИМ ГЕНЕРАЦИЮ ПРОГНОЗА В ОТДЕЛЬНУЮ ФУНКЦИЮ ---
+async function generateForecasts() {
+  // Получаем все блюда
+  const { data: dishes, error: dishError } = await supabase.from('dishes').select('id');
+  if (dishError) throw dishError;
+
+  // Анализируем последние 4 недели
+  const weeksToAnalyze = 4;
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setDate(now.getDate() - weeksToAnalyze * 7);
+  const startDateStr = startDate.toISOString().slice(0, 10);
+
+  // Получаем все заказы за период
+  const { data: orders, error: ordersError } = await supabase
+    .from('orders')
+    .select('id, order_date')
+    .gte('order_date', startDateStr);
+  if (ordersError) throw ordersError;
+
+  const orderMap = {};
+  orders.forEach(o => { orderMap[o.id] = o.order_date; });
+
+  // Получаем все order_items за эти заказы
+  const orderIds = orders.map(o => o.id);
+  const { data: orderItems, error: orderItemsError } = await supabase
+    .from('order_items')
+    .select('dish_id, quantity, order_id')
+    .in('order_id', orderIds);
+  if (orderItemsError) throw orderItemsError;
+
+  // Присваиваем дату заказа каждому order_item
+  orderItems.forEach(oi => {
+    oi.order_date = orderMap[oi.order_id] || null;
+  });
+
+  for (const dish of dishes) {
+    // Берём только те позиции, у которых есть дата заказа!
+    const sales = orderItems.filter(oi => oi.dish_id === dish.id && oi.order_date);
+    const salesByDay = {};
+    for (let i = 0; i < 7; i++) salesByDay[i] = [];
+    sales.forEach(s => {
+      const dow = new Date(s.order_date).getDay();
+      salesByDay[dow].push(s.quantity);
+    });
+
+    for (let i = 0; i < 31; i++) {
+      const forecastDate = new Date(now);
+      forecastDate.setDate(now.getDate() + i);
+      const dow = forecastDate.getDay();
+      const dateStr = forecastDate.toISOString().slice(0, 10);
+
+      const arr = salesByDay[dow];
+      const avg = arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+      await supabase
+        .from('forecasts')
+        .upsert({
+          dish_id: dish.id,
+          forecast_date: dateStr,
+          predicted_sales: avg,
+        }, { onConflict: ['dish_id', 'forecast_date'] });
+    }
+  }
+  console.log('Forecasts updated!');
+}
+// --- АВТОМАТИЧЕСКИЙ ЗАПУСК КАЖДЫЙ ДЕНЬ В 3:00 НОЧИ ---
+cron.schedule('0 3 * * *', () => {
+  console.log('Автоматический запуск прогноза...');
+  generateForecasts().catch(console.error);
+});
 
 
 

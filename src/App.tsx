@@ -14,6 +14,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import DishesPage from './pages/dishes/DishesPage';
 import WaitersPage from './pages/waiters/WaitersPage';
 import OrdersPage from './pages/orders/orderspage';
+import AnalyticsPage from './pages/analytics/AnalyticsPage';
 
 
 
@@ -33,7 +34,8 @@ function App() {
             <Route path="/dishes" element={<DishesPage />} />
             <Route path="/waiters" element={<WaitersPage />} />
             <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/analytics" element={<div className="p-4">Страница аналитики (в разработке)</div>} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            
             <Route path="/uploads" element={<div className="p-4">Страница загрузок (в разработке)</div>} />
             <Route path="/settings" element={<div className="p-4">Страница настроек (в разработке)</div>} />
           </Route>
