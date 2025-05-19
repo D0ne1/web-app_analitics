@@ -15,11 +15,6 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const upload = multer({ storage: multer.memoryStorage() });
 
-//const { Document, Packer, Paragraph, Table, TableRow, TableCell } = require('docx');
-
-// const ru = require('date-fns/locale/ru').default;
-// const ruModule = require('date-fns/locale/ru');
-// const ru = ruModule.default || ruModule;
 
 const app = express();
 const port = 5000;
@@ -970,7 +965,7 @@ app.get('/api/export-full-report-pdf', async (req, res) => {
   try {
     // 1. Основные данные дашборда
     const dashboardRes = await fetch('http://localhost:5000/api/dashboard?timeframe=month').then(r => r.json());
-    const { revenueData, totalRevenue, averageOrderValue, orderCount, topDishes } = dashboardRes;
+    const { revenueData, totalRevenue, averageOrderValue, orderCount, topDishes, waiterPerformance } = dashboardRes;
 
     // 2. Графики по выручке и топ-блюдам
     const width = 800, height = 400;
@@ -1015,6 +1010,43 @@ app.get('/api/export-full-report-pdf', async (req, res) => {
         plugins: { legend: { display: false } },
         indexAxis: 'y',
         scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' ₽' } } }
+      }
+    });
+
+    // ---"Топ официанты по выручке" ---
+    const topWaiters = (waiterPerformance || []).filter(w => w.revenue > 0);
+    const topWaitersChartImgBuffer = await chartCanvas.renderToBuffer({
+      type: 'bar',
+      data: {
+        labels: topWaiters.map(w => w.name),
+        datasets: [{
+          label: 'Выручка официанта',
+          data: topWaiters.map(w => w.revenue),
+          backgroundColor: [
+            'rgba(249, 115, 22, 0.7)',
+            'rgba(37, 99, 235, 0.7)',
+            'rgba(6, 182, 212, 0.7)',
+            'rgba(239, 68, 68, 0.7)',
+          ],
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Официант" }
+          },
+          x: {
+            beginAtZero: true,
+            title: { display: true, text: "Выручка" },
+            ticks: { callback: v => v + ' ₽', stepSize: 1 }
+          }
+        }
       }
     });
 
@@ -1138,6 +1170,8 @@ app.get('/api/export-full-report-pdf', async (req, res) => {
         <img src="data:image/png;base64,${revenueChartImgBuffer.toString('base64')}" width="800"/>
         <h2>Топ-5 по выручке</h2>
         <img src="data:image/png;base64,${topDishesChartImgBuffer.toString('base64')}" width="800"/>
+        <h2>Топ официанты по выручке</h2>
+        <img src="data:image/png;base64,${topWaitersChartImgBuffer.toString('base64')}" width="800"/>
         <h2>Прогноз на неделю</h2>
         <img src="data:image/png;base64,${weekForecastChartImgBuffer.toString('base64')}" width="800"/>
         <h2>Прогноз на месяц</h2>
@@ -1169,8 +1203,14 @@ app.get('/api/export-full-report-pdf', async (req, res) => {
 
 
 
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`✅ Server is running on http://localhost:${port}`);
+  });
+}
 
-// ▶ Запуск сервера
-app.listen(port, () => {
-  console.log(`✅ Server is running on http://localhost:${port}`);
-});
+module.exports = app;
+// // ▶ Запуск сервера
+// app.listen(port, () => {
+//   console.log(`✅ Server is running on http://localhost:${port}`);
+// });

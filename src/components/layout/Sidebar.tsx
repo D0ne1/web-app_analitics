@@ -41,6 +41,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, allowedRoles }) => {
 };
 
 const Sidebar: React.FC = () => {
+  const { user } = useAuth(); // <--- добавь эту строку
+
   return (
     <aside className="w-64 hidden md:block bg-white border-r border-gray-200 overflow-y-auto">
       <div className="py-6 px-6 border-b border-gray-200">
@@ -85,12 +87,14 @@ const Sidebar: React.FC = () => {
           label="Загрузки" 
           allowedRoles={['admin', 'analyst']} 
         />
-        {/* Центрируем кнопку */}
-        <div className="flex justify-center my-1">
-          <Button onClick={() => window.open('http://localhost:5000/api/export-full-report-pdf')}>
-            Экспорт полного отчёта
-          </Button>
-        </div>
+        {/* Кнопка только для НЕ-официантов */}
+        {user?.role !== 'waiter' && (
+          <div className="flex justify-center my-1">
+            <Button onClick={() => window.open('http://localhost:5000/api/export-full-report-pdf')}>
+              Экспорт полного отчёта
+            </Button>
+          </div>
+        )}
         <NavItem 
           to="/settings" 
           icon={<Settings size={20} />} 

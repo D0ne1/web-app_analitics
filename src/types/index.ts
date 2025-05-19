@@ -1,5 +1,3 @@
-// Basic Types
-
 export type Role = 'admin' | 'analyst' | 'waiter';
 
 export interface User {
