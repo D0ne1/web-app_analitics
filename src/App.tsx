@@ -1,15 +1,14 @@
-//import React from 'react';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
-// Layout
+// Компоненты
 import Layout from './components/layout/Layout';
 
-// Auth Pages
+// Страницы аутентификации
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
-// Dashboard Pages
+// Основыне страницы
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DishesPage from './pages/dishes/DishesPage';
 import WaitersPage from './pages/waiters/WaitersPage';
@@ -18,19 +17,16 @@ import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import UploadPage from './pages/uploads/UploadPage';
 import SettingsPage from './pages/settings/SettingsPage';
 
-
-
-
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Auth Routes */}
+          {/*Маршруты для аутентификации*/}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           
-          {/* Protected Routes */}
+          {/* Защищённые пути*/}
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dishes" element={<DishesPage />} />
@@ -41,8 +37,7 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             
           </Route>
-          
-          {/* Redirect to dashboard */}
+          {/* Навигация в дэшборд */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>

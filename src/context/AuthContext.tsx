@@ -3,7 +3,7 @@ import { User, Role } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  setUser: (user: User | null) => void; // ← добавь эту строку!
+  setUser: (user: User | null) => void; 
   isAuthenticated: boolean;
   isLoading: boolean;
   hasRole: (roles: Role[]) => boolean;
@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        setUser, // ← обязательно добавь!
+        setUser, 
         isAuthenticated: !!user,
         isLoading,
         hasRole,

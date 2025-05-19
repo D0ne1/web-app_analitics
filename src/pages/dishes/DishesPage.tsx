@@ -70,7 +70,7 @@ const DishesPage: React.FC = () => {
       isAvailable: editDish.isAvailable,
     })
       .then(res => {
-        // Подразумевается, что сервер возвращает объект блюда с categoryName и categoryId
+       
         const updated = {
           ...res.data,
           categoryId: res.data.categoryId,

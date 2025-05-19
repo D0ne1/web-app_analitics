@@ -24,7 +24,6 @@ const app = express();
 const port = 5000;
 
 // Supabase URL и сервисный ключ
-
 const supabaseUrl = 'https://nxibdtpmxkslhbbgeerz.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54aWJkdHBteGtzbGhiYmdlZXJ6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzMxMTg5OSwiZXhwIjoyMDYyODg3ODk5fQ.IRGXE4tx2qNHzVWe24fTFK5fKIjvH34gQ898JIOI_v4';
 
@@ -33,7 +32,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 app.use(cors());
 app.use(bodyParser.json());
 
-
+//ОФИЦИАНТЫ
 // Получить всех официантов
 app.get('/api/waiters', async (req, res) => {
   try {
@@ -100,7 +99,7 @@ app.put('/api/waiters/:id', async (req, res) => {
     res.status(500).send('Ошибка сервера при обновлении официанта');
   }
 });
-
+// Удалить официанта
 app.delete('/api/waiters/:id', async (req, res) => {
   const id = parseInt(req.params.id);
 
@@ -128,7 +127,7 @@ app.delete('/api/waiters/:id', async (req, res) => {
   }
 });
 
-
+//ЗАКАЗЫ
 // Получить все заказы
 app.get('/api/orders', async (req, res) => {
   try {
@@ -178,6 +177,9 @@ app.get('/api/orders', async (req, res) => {
 });
 
 
+
+
+// Добавить заказ
 app.put('/api/orders/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   const { tableNumber, waiterId } = req.body;
@@ -203,7 +205,7 @@ app.put('/api/orders/:id', async (req, res) => {
   }
 });
 
-
+// Удалить заказ
 app.delete('/api/orders/:id', async (req, res) => {
   const id = parseInt(req.params.id);
 
@@ -223,7 +225,7 @@ app.delete('/api/orders/:id', async (req, res) => {
 });
 
 
-
+// Получить все блюда
 app.get('/api/dishes', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -332,6 +334,10 @@ app.patch('/api/dishes/:id/toggle', async (req, res) => {
 });
 
 
+
+
+
+
 // Получить все категории блюд
 app.get('/api/dish-categories', async (req, res) => {
   try {
@@ -366,7 +372,7 @@ app.post('/api/dish-categories', async (req, res) => {
 
 
 
-
+// Получить все заказы для дашборда
 app.get('/api/dashboard', async (req, res) => {
   try {
     // timeframe: 'week' (7 дней) или 'month' (31 день)
@@ -456,182 +462,8 @@ app.get('/api/dashboard', async (req, res) => {
 
 
 
-// const fetchData = async () => {
-//   setIsLoading(true);
-//   try {
-//     const res = await fetch(`/dashboard?timeframe=${timeframe}`);
-//     const json = await res.json();
-//     console.log('Dashboard data:', json);
 
-//     // Пример распаковки и установки данных в состояние
-//     setTotalRevenue(json.totalRevenue);
-//     setAverageOrderValue(json.averageOrderValue);
-//     setOrderCount(json.orderCount);
 
-//     // Для графика — даты и выручка
-//     setLabels(json.revenueData.map(item => item.date));
-//     setRevenueData(json.revenueData.map(item => item.revenue));
-
-//     setTopDishes(json.topDishes);
-//     setWaiterPerformance(json.waiterPerformance);
-//   } catch (err) {
-//     console.error('Ошибка загрузки данных:', err);
-//   } finally {
-//     setIsLoading(false);
-//   }
-// };
-
-app.get('/dashboard', async (req, res) => {
-  const timeframe = req.query.timeframe || 'week';
-
-  const now = new Date();
-  let startDate = new Date();
-  let prevStartDate = new Date();
-  let prevEndDate = new Date();
-
-  if (timeframe === 'week') {
-    startDate.setDate(now.getDate() - 7);
-    prevEndDate = new Date(startDate);
-    prevStartDate = new Date(startDate);
-    prevStartDate.setDate(startDate.getDate() - 7);
-  } else if (timeframe === 'month') {
-    startDate.setMonth(now.getMonth() - 1);
-    prevEndDate = new Date(startDate);
-    prevStartDate = new Date(startDate);
-    prevStartDate.setMonth(startDate.getMonth() - 1);
-  } else {
-    // По умолчанию — всё время. Проценты изменений будут 0.
-    startDate = null;
-    prevStartDate = null;
-    prevEndDate = null;
-  }
-
-  try {
-    // 1. Заказы за период
-    let ordersQuery = supabase
-      .from('orders')
-      .select('id, order_date, total_amount');
-
-    if (startDate) {
-      ordersQuery = ordersQuery
-        .gte('order_date', startDate.toISOString())
-        .lte('order_date', now.toISOString());
-    }
-    ordersQuery = ordersQuery.order('order_date', { ascending: true });
-    const { data: orders, error: ordersError } = await ordersQuery;
-    if (ordersError) throw ordersError;
-
-    // 2. Заказы за прошлый период для сравнения
-    let prevOrders = [];
-    if (prevStartDate && prevEndDate) {
-      let prevOrdersQuery = supabase
-        .from('orders')
-        .select('id, order_date, total_amount')
-        .gte('order_date', prevStartDate.toISOString())
-        .lte('order_date', prevEndDate.toISOString());
-      prevOrdersQuery = prevOrdersQuery.order('order_date', { ascending: true });
-      const { data, error } = await prevOrdersQuery;
-      if (error) throw error;
-      prevOrders = data;
-    }
-
-    // Метрики текущего периода
-    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount), 0);
-    const orderCount = orders.length;
-    const averageOrderValue = orderCount ? Math.round(totalRevenue / orderCount) : 0;
-
-    // Метрики прошлого периода
-    const prevTotalRevenue = prevOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
-    const prevOrderCount = prevOrders.length;
-    const prevAverageOrderValue = prevOrderCount ? Math.round(prevTotalRevenue / prevOrderCount) : 0;
-
-    // Проценты изменений
-    function calcPercent(current, prev) {
-      if (prev === 0) return current === 0 ? 0 : 100;
-      return ((current - prev) / prev * 100).toFixed(1);
-    }
-    const revenueChange = calcPercent(totalRevenue, prevTotalRevenue);
-    const avgOrderChange = calcPercent(averageOrderValue, prevAverageOrderValue);
-    const orderCountChange = calcPercent(orderCount, prevOrderCount);
-
-    // Группировка по дате для графика
-    const revenueByDateMap = {};
-    orders.forEach(order => {
-      const dateStr = order.order_date.slice(0, 10);
-      revenueByDateMap[dateStr] = (revenueByDateMap[dateStr] || 0) + Number(order.total_amount);
-    });
-    const revenueData = Object.entries(revenueByDateMap).map(([date, revenue]) => ({ date, revenue }));
-
-    // Топ-5 популярных блюд (фильтруем по orders.order_date)
-    let orderItemsQuery = supabase
-      .from('order_items')
-      .select(`
-        dish_id,
-        quantity,
-        price,
-        dishes(name),
-        orders(order_date)
-      `);
-
-    if (startDate) {
-      orderItemsQuery = orderItemsQuery
-        .gte('orders.order_date', startDate.toISOString())
-        .lte('orders.order_date', now.toISOString());
-    }
-
-    const { data: orderItems, error: orderItemsError } = await orderItemsQuery;
-    if (orderItemsError) throw orderItemsError;
-
-    // Группируем блюда
-    const dishMap = {};
-    orderItems.forEach(({ dish_id, quantity, price, dishes }) => {
-      if (!dishMap[dish_id]) dishMap[dish_id] = { name: dishes.name, revenue: 0, count: 0 };
-      dishMap[dish_id].revenue += price * quantity;
-      dishMap[dish_id].count += quantity;
-    });
-    const topDishes = Object.values(dishMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    // Топ-4 официанта по сумме заказов
-    let waiterOrdersQuery = supabase
-      .from('orders')
-      .select('waiter_id, waiters(name), total_amount');
-    if (startDate) {
-      waiterOrdersQuery = waiterOrdersQuery
-        .gte('order_date', startDate.toISOString())
-        .lte('order_date', now.toISOString());
-    }
-    const { data: waiterOrders, error: waiterOrdersError } = await waiterOrdersQuery;
-    if (waiterOrdersError) throw waiterOrdersError;
-
-    const waiterMap = {};
-    waiterOrders.forEach(({ waiter_id, total_amount, waiters }) => {
-      if (!waiterMap[waiter_id]) waiterMap[waiter_id] = { name: waiters.name, revenue: 0, orderCount: 0 };
-      waiterMap[waiter_id].revenue += Number(total_amount);
-      waiterMap[waiter_id].orderCount += 1;
-    });
-    const waiterPerformance = Object.values(waiterMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 4);
-
-    // Отдаём клиенту все метрики и проценты изменений
-    res.json({
-      totalRevenue,
-      averageOrderValue,
-      orderCount,
-      revenueData,
-      topDishes,
-      waiterPerformance,
-      revenueChange,
-      avgOrderChange,
-      orderCountChange,
-    });
-  } catch (error) {
-    console.error('Ошибка в /dashboard:', error);
-    res.status(500).json({ error: 'Ошибка сервера при получении данных дашборда' });
-  }
-});
 
 
 
@@ -656,17 +488,7 @@ app.post('/api/register', async (req, res) => {
   res.status(201).json({ user: { id: userId, email, username, role } });
 });
 
-// app.post('/api/login', async (req, res) => {
-//   // ВРЕМЕННО: жёстко прописываем e-mail и пароль для теста
-//   const { data, error } = await supabase.auth.signInWithPassword({
-//     email: 'dpanfilov12@.com', // <-- ТВОЙ email, который точно зарегистрирован!
-//     password: '123123',    // <-- Пароль, который вводил при регистрации!
-//   });
-//   console.log('ТЕСТ:', data, error);
 
-//   // Можно возвращать результат теста на фронт (или просто смотреть в логе Node.js)
-//   res.json({ data, error });
-// });
 
 // Логин пользователя
 app.post('/api/login', async (req, res) => {
@@ -709,6 +531,30 @@ app.post('/api/login', async (req, res) => {
   });
 });
 
+// Для изменения username и email пользователя
+app.put('/api/users/:id', async (req, res) => {
+  const userId = req.params.id;
+  const { username, email } = req.body;
+
+  // 1. Обновить имя и email в своей таблице users
+  const { error: userError } = await supabase
+    .from('users')
+    .update({ username, email })
+    .eq('id', userId);
+
+  if (userError) {
+    return res.status(500).json({ error: 'Ошибка обновления профиля (users)' });
+  }
+
+  // 2. Обновить email в Supabase Auth
+  const { error: authError } = await supabase.auth.admin.updateUserById(userId, { email });
+  if (authError) {
+    console.error("SUPABASE AUTH ERROR:", authError);
+    return res.status(500).json({ error: 'Ошибка обновления email (auth)' });
+  }
+
+  res.json({ ok: true });
+});
 
 
 
@@ -898,31 +744,6 @@ app.post('/api/delete-all', async (req, res) => {
 
 
 
-// Для изменения username и email пользователя
-app.put('/api/users/:id', async (req, res) => {
-  const userId = req.params.id;
-  const { username, email } = req.body;
-
-  // 1. Обновить имя и email в своей таблице users
-  const { error: userError } = await supabase
-    .from('users')
-    .update({ username, email })
-    .eq('id', userId);
-
-  if (userError) {
-    return res.status(500).json({ error: 'Ошибка обновления профиля (users)' });
-  }
-
-  // 2. Обновить email в Supabase Auth (это важно!)
-  // Для этого нужен сервисный ключ (который у тебя уже есть)
-  const { error: authError } = await supabase.auth.admin.updateUserById(userId, { email });
-  if (authError) {
-    console.error("SUPABASE AUTH ERROR:", authError);
-    return res.status(500).json({ error: 'Ошибка обновления email (auth)' });
-  }
-
-  res.json({ ok: true });
-});
 
 
 
@@ -1004,10 +825,6 @@ async function generateForecasts() {
         forecastDates.push({ date: forecastDate, dow });
       }
     }
-
-    // --- На неделю вперёд ---
-    // Если хочешь, можешь отдельно прогнозировать только для ближайшей недели аналогично
-
     // 7. Сохраняем прогнозы только для этих дат
     for (const { date, dow } of forecastDates) {
   const arr = salesByDay[dow];
@@ -1016,16 +833,7 @@ async function generateForecasts() {
   const forecast = Math.max(0, Math.round(m + s));
   const dateStr = date.toISOString().slice(0, 10);
 
-  console.log(
-    'Готов к upsert:',
-    dish.id,
-    dish.name,
-    forecastDates.map(fd => fd.date.toISOString().slice(0, 10)),
-    salesByDay,
-    usedDays
-  );
-
-  // --- ВАЖНО: сохраняем ошибку upsert и логируем ---
+  
     const { error: upsertError } = await supabase
       .from('forecasts')
       .upsert(
@@ -1043,11 +851,11 @@ async function generateForecasts() {
         predicted_sales: forecast
       });
     } else {
-      console.log('Upsert OK:', dish.id, dateStr, forecast);
+      
     }
   }
   }
-  console.log('Forecasts (no empty dates) updated!');
+  
 }
 
 // Функции для статистики
@@ -1061,19 +869,6 @@ function std(arr) {
   return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1));
 }
 
-
-
-
-
-
-
-
-
-// --- АВТОМАТИЧЕСКИЙ ЗАПУСК КАЖДЫЙ ДЕНЬ В 3:00 НОЧИ ---
-cron.schedule('0 3 * * *', () => {
-  console.log('Автоматический запуск прогноза...');
-  generateForecasts().catch(console.error);
-});
 
 //--- API для фронта ---
 app.get('/api/forecasts', async (req, res) => {
