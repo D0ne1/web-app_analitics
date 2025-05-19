@@ -87,7 +87,7 @@ const Sidebar: React.FC = () => {
         />
         {/* Центрируем кнопку */}
         <div className="flex justify-center my-1">
-          <Button onClick={() => window.open('http://localhost:5000/api/export-full-report-docx')}>
+          <Button onClick={() => window.open('http://localhost:5000/api/export-full-report-pdf')}>
             Экспорт полного отчёта
           </Button>
         </div>

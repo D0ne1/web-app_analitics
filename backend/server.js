@@ -8,6 +8,7 @@ const ruModule = require('date-fns/locale/ru');
 const ru = ruModule.default || ruModule;
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const cron = require('node-cron');
+const puppeteer = require('puppeteer');
 
 
 const multer = require('multer');
@@ -965,235 +966,200 @@ function safeFormat(dateValue, pattern) {
     return "";
   }
 }
+app.get('/api/export-full-report-pdf', async (req, res) => {
+  try {
+    // 1. Основные данные дашборда
+    const dashboardRes = await fetch('http://localhost:5000/api/dashboard?timeframe=month').then(r => r.json());
+    const { revenueData, totalRevenue, averageOrderValue, orderCount, topDishes } = dashboardRes;
 
-// --- Экспорт отчёта с дашбордом и графиками ---
-app.get('/api/export-full-report-docx', async (req, res) => {
-  // 1. Получить данные для дашборда
-  const dashboardRes = await fetch('http://localhost:5000/api/dashboard?timeframe=month').then(r => r.json());
-  const { revenueData, totalRevenue, averageOrderValue, orderCount, topDishes, waiterPerformance } = dashboardRes;
+    // 2. Графики по выручке и топ-блюдам
+    const width = 800, height = 400;
+    const chartCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour: "white" });
 
-  // 2. Готовим графики (динамика выручки, топ-5 блюд)
-  const width = 800, height = 400;
-  const chartCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour: "white" });
-
-  // 2.1 График "Динамика выручки"
-  const revenueChartData = {
-    labels: revenueData.map(item => safeFormat(item.date, 'dd MMM')),
-    datasets: [
-      {
-        label: 'Выручка',
-        data: revenueData.map(item => item.revenue),
-        borderColor: '#2563EB',
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        tension: 0.4,
-        fill: true,
+    const revenueChartImgBuffer = await chartCanvas.renderToBuffer({
+      type: 'line',
+      data: {
+        labels: revenueData.map(item => safeFormat(item.date, 'dd MMM')),
+        datasets: [{
+          label: 'Выручка',
+          data: revenueData.map(item => item.revenue),
+          borderColor: '#2563EB',
+          backgroundColor: 'rgba(37, 99, 235, 0.1)',
+          tension: 0.4,
+          fill: true,
+        }]
       },
-    ],
-  };
-  const revenueChartImgBuffer = await chartCanvas.renderToBuffer({
-    type: 'line',
-    data: revenueChartData,
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: v => v + ' ₽' }
-        }
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' ₽' } } }
       }
-    },
-  });
-
-  // 2.2 График "Топ-5 по выручке"
-  const topDishesChartData = {
-    labels: topDishes.map(d => d.name),
-    datasets: [
-      {
-        label: 'Выручка',
-        data: topDishes.map(d => d.revenue),
-        backgroundColor: [
-          'rgba(37, 99, 235, 0.7)',
-          'rgba(6, 182, 212, 0.7)',
-          'rgba(249, 115, 22, 0.7)',
-          'rgba(34, 197, 94, 0.7)',
-          'rgba(239, 68, 68, 0.7)',
-        ]
-      }
-    ]
-  };
-  const topDishesChartImgBuffer = await chartCanvas.renderToBuffer({
-    type: 'bar',
-    data: topDishesChartData,
-    options: {
-      plugins: { legend: { display: false } },
-      indexAxis: 'y',
-      scales: {
-        x: {
-          beginAtZero: true,
-          ticks: { callback: v => v + ' ₽' }
-        }
-      }
-    }
-  });
-
-  // 3. Ключевые метрики
-  const metricsTable = new Table({
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph("Общая выручка")] }),
-          new TableCell({ children: [new Paragraph(totalRevenue.toLocaleString('ru-RU') + " ₽")] }),
-        ]
-      }),
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph("Средний чек")] }),
-          new TableCell({ children: [new Paragraph(averageOrderValue.toLocaleString('ru-RU') + " ₽")] }),
-        ]
-      }),
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph("Количество заказов")] }),
-          new TableCell({ children: [new Paragraph(orderCount.toLocaleString('ru-RU'))] }),
-        ]
-      }),
-    ]
-  });
-
-  // 4. Эффективность официантов
-  const waiterPerfTable = new Table({
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph("Имя")] }),
-          new TableCell({ children: [new Paragraph("Фамилия")] }),
-          new TableCell({ children: [new Paragraph("Заказы")] }),
-          new TableCell({ children: [new Paragraph("Выручка")] }),
-        ]
-      }),
-      ...waiterPerformance.map(w =>
-        new TableRow({
-          children: [
-            new TableCell({ children: [new Paragraph(w.name || "")] }),
-            new TableCell({ children: [new Paragraph(w.surname || "")] }),
-            new TableCell({ children: [new Paragraph(String(w.orderCount))] }),
-            new TableCell({ children: [new Paragraph(w.revenue.toLocaleString('ru-RU') + " ₽")] }),
-          ]
-        })
-      )
-    ]
-  });
-
-  // 5. Получить обычные таблицы для отчёта
-  const { data: dishes } = await supabase.from('dishes').select('id, name, price, is_available, dish_categories(name)');
-  const { data: waiters } = await supabase.from('waiters').select('id, name, surname, phone, hired_at');
-  const { data: orders } = await supabase.from('orders').select('id, order_date, table_number, waiter_id, total_amount, waiters(name, surname), order_items(quantity, price, dishes(name))');
-  const { data: forecasts } = await supabase.from('forecasts').select('dish_id, forecast_date, predicted_sales, dishes(name)');
-
-  function makeTable(headers, rows) {
-    return new Table({
-      rows: [
-        new TableRow({ children: headers.map(h => new TableCell({ children: [new Paragraph(h)] })) }),
-        ...rows.map(row => new TableRow({
-          children: row.map(cell => new TableCell({ children: [new Paragraph(String(cell))] })),
-        }))
-      ],
     });
+
+    const topDishesChartImgBuffer = await chartCanvas.renderToBuffer({
+      type: 'bar',
+      data: {
+        labels: topDishes.map(d => d.name),
+        datasets: [{
+          label: 'Выручка',
+          data: topDishes.map(d => d.revenue),
+          backgroundColor: [
+            'rgba(37, 99, 235, 0.7)',
+            'rgba(6, 182, 212, 0.7)',
+            'rgba(249, 115, 22, 0.7)',
+            'rgba(34, 197, 94, 0.7)',
+            'rgba(239, 68, 68, 0.7)',
+          ]
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' ₽' } } }
+      }
+    });
+
+    // 3. Прогнозы на неделю и на месяц (bar chart)
+    const { data: dishes } = await supabase.from('dishes').select('id, name');
+    const { data: forecasts } = await supabase.from('forecasts').select('dish_id, forecast_date, predicted_sales');
+    
+    const today = new Date();
+    const weekMap = {};
+    const monthMap = {};
+    for (const dish of dishes) {
+      weekMap[dish.id] = { name: dish.name, total: 0 };
+      monthMap[dish.id] = { name: dish.name, total: 0 };
+    }
+    for (const f of forecasts) {
+      const days = (new Date(f.forecast_date) - today) / (1000 * 60 * 60 * 24);
+      if (days < 7) weekMap[f.dish_id].total += Number(f.predicted_sales);
+      if (days < 31) monthMap[f.dish_id].total += Number(f.predicted_sales);
+    }
+    // Только блюда с ненулевым прогнозом
+    const weekData = Object.values(weekMap).filter(x => x.total > 0);
+    const monthData = Object.values(monthMap).filter(x => x.total > 0);
+
+    // Bar Chart "Прогноз на неделю"
+    const weekForecastChartImgBuffer = await chartCanvas.renderToBuffer({
+      type: 'bar',
+      data: {
+        labels: weekData.map(d => d.name),
+        datasets: [{
+          label: "Прогноз на неделю, порций",
+          data: weekData.map(d => d.total),
+          backgroundColor: "rgba(37, 99, 235, 0.7)",
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y} порций`,
+            }
+          }
+        },
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Блюдо" }
+          },
+          x: {
+            beginAtZero: true,
+            title: { display: true, text: "Порций" },
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+
+    // Bar Chart "Прогноз на месяц"
+    const monthForecastChartImgBuffer = await chartCanvas.renderToBuffer({
+      type: 'bar',
+      data: {
+        labels: monthData.map(d => d.name),
+        datasets: [{
+          label: "Прогноз на месяц, порций",
+          data: monthData.map(d => d.total),
+          backgroundColor: "rgba(6, 182, 212, 0.7)",
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y} порций`,
+            }
+          }
+        },
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Блюдо" }
+          },
+          x: {
+            beginAtZero: true,
+            title: { display: true, text: "Порций" },
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+
+    // 4. HTML-отчёт — вставляем bar charts как base64-изображения
+    const html = `
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; }
+          h1, h2 { color: #2563EB; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 20px;}
+          th, td { border: 1px solid #ccc; padding: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>Дашборд ресторана</h1>
+        <h2>Ключевые метрики</h2>
+        <table>
+          <tr><td>Общая выручка</td><td>${totalRevenue} ₽</td></tr>
+          <tr><td>Средний чек</td><td>${averageOrderValue} ₽</td></tr>
+          <tr><td>Количество заказов</td><td>${orderCount}</td></tr>
+        </table>
+        <h2>Динамика выручки</h2>
+        <img src="data:image/png;base64,${revenueChartImgBuffer.toString('base64')}" width="800"/>
+        <h2>Топ-5 по выручке</h2>
+        <img src="data:image/png;base64,${topDishesChartImgBuffer.toString('base64')}" width="800"/>
+        <h2>Прогноз на неделю</h2>
+        <img src="data:image/png;base64,${weekForecastChartImgBuffer.toString('base64')}" width="800"/>
+        <h2>Прогноз на месяц</h2>
+        <img src="data:image/png;base64,${monthForecastChartImgBuffer.toString('base64')}" width="800"/>
+      </body>
+      </html>
+    `;
+
+    // 5. PDF через puppeteer
+    const browser = await puppeteer.launch({ headless: "new" });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    await browser.close();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=restaurant-full-report.pdf');
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Ошибка экспорта отчёта:', err);
+    res.status(500).json({ error: 'Ошибка экспорта отчёта' });
   }
-
-  const dishesTable = makeTable(
-    ["Название", "Категория", "Цена", "Доступно"],
-    dishes.map(d => [
-      d.name,
-      d.dish_categories?.name || "",
-      d.price + " ₽",
-      d.is_available ? "Да" : "Нет"
-    ])
-  );
-
-  const waitersTable = makeTable(
-    ["Имя", "Фамилия", "Телефон", "Дата найма"],
-    waiters.map(w => [
-      w.name,
-      w.surname,
-      w.phone,
-      safeFormat(w.hired_at, "dd.MM.yyyy")
-    ])
-  );
-
-  const ordersTable = makeTable(
-    ["Дата", "Стол", "Официант", "Сумма", "Позиции"],
-    orders.map(o => [
-      safeFormat(o.order_date, "dd.MM.yyyy HH:mm"),
-      o.table_number,
-      `${o.waiters?.name || ""} ${o.waiters?.surname || ""}`,
-      o.total_amount + " ₽",
-      Array.isArray(o.order_items)
-        ? o.order_items.map(i => `${i.dishes?.name} × ${i.quantity}`).join(", ")
-        : ""
-    ])
-  );
-
-  const today = new Date();
-  const weekForecasts = forecasts.filter(f =>
-    (new Date(f.forecast_date) - today) / (1000 * 60 * 60 * 24) < 7
-  );
-  const monthForecasts = forecasts.filter(f =>
-    (new Date(f.forecast_date) - today) / (1000 * 60 * 60 * 24) < 31
-  );
-  const weekForecastTable = makeTable(
-    ["Блюдо", "Дата", "Прогноз, порций"],
-    weekForecasts.map(f => [f.dishes?.name || f.dish_id, f.forecast_date, f.predicted_sales])
-  );
-  const monthForecastTable = makeTable(
-    ["Блюдо", "Дата", "Прогноз, порций"],
-    monthForecasts.map(f => [f.dishes?.name || f.dish_id, f.forecast_date, f.predicted_sales])
-  );
-
-  // 6. Сначала создаём doc
-  const doc = new Document(); // просто для Media.addImage
-
-
-  // 7. Теперь формируем children с использованием doc для Media.addImage
-  const children = [
-    new Paragraph({ text: "Дашборд ресторана", heading: "Title" }),
-    new Paragraph({ text: "Ключевые метрики", heading: "Heading1" }),
-    metricsTable,
-    new Paragraph(""),
-    new Paragraph({ text: "Динамика выручки", heading: "Heading1" }),
-    Media.addImage(doc, revenueChartImgBuffer, width, height),
-    new Paragraph(""),
-    new Paragraph({ text: "Топ-5 по выручке", heading: "Heading1" }),
-    Media.addImage(doc, topDishesChartImgBuffer, width, height),
-    new Paragraph(""),
-    new Paragraph({ text: "Эффективность официантов", heading: "Heading1" }),
-    waiterPerfTable,
-    new Paragraph(""),
-    new Paragraph({ text: "Список блюд", heading: "Heading1" }),
-    dishesTable,
-    new Paragraph({ text: "Список официантов", heading: "Heading1" }),
-    waitersTable,
-    new Paragraph({ text: "Список заказов", heading: "Heading1" }),
-    ordersTable,
-    new Paragraph({ text: "Прогноз на неделю", heading: "Heading1" }),
-    weekForecastTable,
-    new Paragraph({ text: "Прогноз на месяц", heading: "Heading1" }),
-    monthForecastTable,
-  ];
-
-  // 8. Добавляем секцию в doc
-  // doc.addSection({ children });
-  const fullDoc = new Document({
-    sections: [
-      { children }
-    ]
-  });
-
-  // 9. Отдать файл
-  const buffer = await Packer.toBuffer(fullDoc);
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-  res.setHeader('Content-Disposition', 'attachment; filename=restaurant-full-report.docx');
-  res.send(buffer);
 });
 
 
