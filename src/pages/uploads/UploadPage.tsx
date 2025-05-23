@@ -37,21 +37,40 @@ const UploadsPage: React.FC = () => {
   return (
     <div className="p-8 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Загрузка Excel-файлов</h1>
-      <input
-        type="file"
-        accept=".xlsx,.xls"
-        onChange={handleFileChange}
-        className="mb-4"
-      />
+      <div className="flex items-center mb-4 space-x-4">
+        <label
+          htmlFor="file-upload"
+          className={`${
+            file
+              ? "bg-gray-400 hover:bg-gray-500 text-white"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          } px-4 py-2 rounded cursor-pointer transition-colors duration-150 font-semibold`}
+        >
+          {file ? "Файл выбран" : "Выберите файл"}
+          <input
+            id="file-upload"
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </label>
+        <span className="text-gray-700 text-sm">
+          {file && file.name}
+        </span>
+      </div>
+
       <button
-        className="bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-150 font-semibold"
         onClick={handleUpload}
         disabled={!file || isUploading}
       >
         {isUploading ? "Загрузка..." : "Загрузить"}
       </button>
       {message && (
-        <div className="mt-4 text-green-700 font-semibold">{message}</div>
+        <div className={`mt-4 font-semibold ${message.includes("успешно") ? "text-green-700" : "text-red-600"}`}>
+          {message}
+        </div>
       )}
       <div className="mt-8 text-gray-600 text-sm">
         Поддерживаются файлы Excel (.xls, .xlsx) с данными заказов или блюд.<br />

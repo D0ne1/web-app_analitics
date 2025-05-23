@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, User, Menu } from 'lucide-react';
+import { LogOut, User, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Header: React.FC = () => {
@@ -26,15 +26,11 @@ const Header: React.FC = () => {
       </div>
       
       <div className="flex-1 md:text-center md:flex-initial">
-        <h1 className="text-xl font-semibold text-gray-800">Resto`run</h1>
+        <h1 className="text-xl font-semibold text-gray-800">Resto&#96;run</h1>
       </div>
       
       <div className="flex items-center space-x-4">
-        <button className="text-gray-500 hover:text-gray-700 focus:outline-none relative">
-          <Bell size={20} />
-          <span className="absolute top-0 right-0 w-2 h-2 bg-accent-500 rounded-full"></span>
-        </button>
-        
+        {/* Bell icon and notification badge removed */}
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
