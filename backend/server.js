@@ -328,7 +328,32 @@ app.patch('/api/dishes/:id/toggle', async (req, res) => {
     res.status(500).send('Ошибка сервера при обновлении блюда');
   }
 });
+// Удалить блюдо по id
+app.delete('/api/dishes/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
 
+  try {
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('dish_id', id);
+
+    if (itemsError) throw itemsError;
+
+    // Потом само блюдо
+    const { error: dishError } = await supabase
+      .from('dishes')
+      .delete()
+      .eq('id', id);
+
+    if (dishError) throw dishError;
+
+    res.status(204).send();
+  } catch (err) {
+    console.error('Ошибка при удалении блюда:', err);
+    res.status(500).send('Ошибка сервера при удалении блюда');
+  }
+});
 
 
 

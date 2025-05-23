@@ -63,17 +63,16 @@ const DishesPage: React.FC = () => {
       editDish.price === undefined
     ) return;
 
-    axios.patch(`http://localhost:5000/api/dishes/${editDish.id}`, {
+    axios.put(`http://localhost:5000/api/dishes/${editDish.id}`, {
       name: editDish.name,
       categoryId: editDish.categoryId,
       price: editDish.price,
       isAvailable: editDish.isAvailable,
     })
       .then(res => {
-       
         const updated = {
           ...res.data,
-          categoryId: res.data.categoryId,
+          categoryId: res.data.categoryId ?? res.data.category_id,
           category: res.data.categoryName,
           isAvailable: res.data.isAvailable,
         };
