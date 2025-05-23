@@ -2,7 +2,6 @@ const request = require('supertest');
 const app = require('../server');
 let server;
 
-// Если у тебя используется supabase, замокай его очень просто (можно убрать, если не надо):
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn(() => ({
