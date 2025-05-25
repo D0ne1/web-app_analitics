@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "jest",
+    "vercel-build": "rm -rf node_modules package-lock.json && npm install && npm run build",
     "preview": "vite preview",
     "start-server": "node backend/server.js",
     "start-client": "npm run dev",
