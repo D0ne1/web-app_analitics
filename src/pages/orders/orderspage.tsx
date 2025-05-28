@@ -74,7 +74,7 @@ const saveEdit = async () => {
       )
     );
     closeEdit();
-    setUpdateMessage('Заказ обновлен. Пожалуйста, обновите страницу для отображения изменений.');
+    //setUpdateMessage('Заказ обновлен. Пожалуйста, обновите страницу для отображения изменений.');
   } catch (err) {
     console.error('Ошибка при обновлении заказа:', err);
     setUpdateMessage('Ошибка при обновлении заказа. Попробуйте снова.');
@@ -99,15 +99,6 @@ const saveEdit = async () => {
     if (!editingOrder) return;
     setEditingOrder({ ...editingOrder, [field]: value });
   };
-
-//   const updateOrderItemQuantity = (itemId: number, quantity: number) => {
-//     if (!editingOrder) return;
-//     const updatedItems = editingOrder.items.map(item =>
-//       item.id === itemId ? { ...item, quantity } : item
-//     );
-//     const newTotal = updatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-//     setEditingOrder({ ...editingOrder, items: updatedItems, totalAmount: newTotal });
-//   };
 
   return (
     <div className="space-y-6">
