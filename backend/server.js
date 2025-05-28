@@ -1310,7 +1310,3 @@ if (require.main === module) {
 }
 
 module.exports = app;
-//Запуск сервера
-// app.listen(port, () => {
-//   console.log(`✅ Server is running on http://localhost:${port}`);
-// });

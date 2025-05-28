@@ -128,7 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose, isMobile = fal
             to="/settings" 
             icon={<Settings size={20} />} 
             label="Настройки" 
-            allowedRoles={['admin']}
+            allowedRoles={['admin','analyst','waiter']}
             onClick={isMobile ? onClose : undefined}
           />
         </nav>

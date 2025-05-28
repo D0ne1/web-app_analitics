@@ -87,18 +87,25 @@ export default function SettingsPage() {
       </button>
       {message && <div>{message}</div>}
       <hr />
-      <button
-        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
-        disabled={deleting}
-        onClick={handleDeleteAll}
-      >
-        {deleting ? "Удаление..." : "Удалить все данные"}
-      </button>
-      {deleteMessage && (
-        <div className="mt-2 text-sm" style={{ color: deleteMessage.includes("Ошибка") ? "red" : "green" }}>
-          {deleteMessage}
-        </div>
+      {/* Показываем кнопку удаления только если пользователь не официант */}
+      {user.role !== 'waiter' && (
+        <>
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+            disabled={deleting}
+            onClick={handleDeleteAll}
+          >
+            {deleting ? "Удаление..." : "Удалить все данные"}
+          </button>
+          {deleteMessage && (
+            <div className="mt-2 text-sm" style={{ color: deleteMessage.includes("Ошибка") ? "red" : "green" }}>
+              {deleteMessage}
+            </div>
+          )}
+          <hr />
+        </>
       )}
+      
       <hr />
       <button
         className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition"
