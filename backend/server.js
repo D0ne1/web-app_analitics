@@ -67,7 +67,7 @@ app.put('/api/waiters/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   const { name,surname, phone, hired_at } = req.body;
 
-  if (!name |!surname || !phone || !hired_at) {
+  if (!name || !surname || !phone || !hired_at) {
     return res.status(400).send('Отсутствуют обязательные поля');
   }
 

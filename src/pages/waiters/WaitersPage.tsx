@@ -48,38 +48,47 @@ const WaitersPage: React.FC = () => {
 
   // Добавление официанта через API
   const handleAddWaiter = () => {
-    if (!newWaiter.name || !newWaiter.phone || !newWaiter.hiredAt) return;
+  if (!newWaiter.name || !newWaiter.phone || !newWaiter.hiredAt) return;
 
-    fetch('http://localhost:5000/api/waiters', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newWaiter.name,
-        surname: newWaiter.surname,
-        phone: newWaiter.phone,
-        hired_at: newWaiter.hiredAt,
-      }),
+  fetch('http://localhost:5000/api/waiters', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: newWaiter.name,
+      surname: newWaiter.surname,
+      phone: newWaiter.phone,
+      hired_at: newWaiter.hiredAt,
+    }),
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Ошибка при добавлении официанта');
+      return res.json();
     })
-      .then(res => {
-        if (!res.ok) throw new Error('Ошибка при добавлении официанта');
-        return res.json();
-      })
-      .then((addedWaiter) => {
-        setWaiters(prev => [...prev, {
-          id: addedWaiter.id,
-          name: addedWaiter.name,
-          surname: addedWaiter.surname, 
-          phone: addedWaiter.phone,
-          hiredAt: addedWaiter.hired_at,
-        }]);
-        setShowAddModal(false);
-        setNewWaiter({ name: '', surname: '', phone: '', hiredAt: format(new Date(), 'yyyy-MM-dd') });
-      })
-      .catch(err => {
-        alert(err.message);
-        console.error(err);
+    .then((addedWaiter) => {
+      // Явно указываем все поля, включая surname
+      const newWaiterData = {
+        id: addedWaiter.id,
+        name: addedWaiter.name,
+        surname: addedWaiter.surname,
+        phone: addedWaiter.phone,
+        hiredAt: addedWaiter.hired_at,
+      };
+      
+      setWaiters(prev => [...prev, newWaiterData]);
+      setShowAddModal(false);
+      setNewWaiter({ 
+        name: '', 
+        surname: '', 
+        phone: '', 
+        hiredAt: format(new Date(), 'yyyy-MM-dd') 
       });
-  };
+    })
+    .catch(err => {
+      alert(err.message);
+      console.error(err);
+    });
+};
+
 const handleUpdateWaiter = () => {
   if (!editWaiter) return;
 
@@ -100,7 +109,13 @@ const handleUpdateWaiter = () => {
     .then((updatedWaiter) => {
       setWaiters(prev =>
         prev.map(w => w.id === updatedWaiter.id
-          ? { ...w, name: updatedWaiter.name, phone: updatedWaiter.phone, hiredAt: updatedWaiter.hired_at }
+          ? { 
+              ...w, 
+              name: updatedWaiter.name, 
+              surname: updatedWaiter.surname,
+              phone: updatedWaiter.phone, 
+              hiredAt: updatedWaiter.hired_at 
+            }
           : w
         )
       );
@@ -114,8 +129,6 @@ const handleUpdateWaiter = () => {
 
   // Удаление официанта через API
   const handleDeleteWaiter = (id: number) => {
-    if (!window.confirm('Вы уверены, что хотите удалить официанта?')) return;
-
     fetch(`http://localhost:5000/api/waiters/${id}`, { method: 'DELETE' })
       .then(res => {
         if (!res.ok) throw new Error('Ошибка при удалении официанта');
