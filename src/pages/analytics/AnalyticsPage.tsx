@@ -46,7 +46,7 @@ const AnalyticsPage: React.FC = () => {
   };
 
 
-//const [isForecasting, setIsForecasting] = useState(false);
+
 const handleRefresh = async () => {
   setIsLoading(true);
   try {
